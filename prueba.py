@@ -13,7 +13,7 @@ st.title("📊 Evolución del IBEX 35 vs PIB de España")
 st.markdown("""
 ### 📊 Análisis comparativo de indicadores económicos clave en España
 
-Esta aplicación presenta una visualización interactiva de la evolución del índice bursátil **IBEX 35**, el **PIB nominal español**, la **inflación anual**, la **tasa de desempleo**, la **deuda pública como porcentaje del PIB**, y los **tipos de interés oficiales del BCE**.  
+Esta aplicación presenta una visualización interactiva de la evolución del índice bursátil **IBEX 35**, el **PIB nominal español**, la **inflación anual**, la **deuda pública como porcentaje del PIB**, y los **tipos de interés oficiales del BCE**.  
 El objetivo es ofrecer una perspectiva integrada sobre el comportamiento de los mercados financieros en relación con los principales indicadores macroeconómicos del país.
 
 **Cada sección incluye:**
@@ -137,7 +137,7 @@ comparativa_filtrada = comparativa[
 tipos_interes    = tipos_interes[(tipos_interes["date"] >= start_str) & (tipos_interes["date"] <= end_str)]
 
 # Tabs para los gráficos
-tabs = st.tabs(["📈 IBEX vs PIB", "📉 Desempleo", "💰 Deuda pública", "🏦 Tipos de interés"])
+tabs = st.tabs(["📈 IBEX vs PIB", "💰 Deuda pública", "🏦 Tipos de interés"])
 
 # ======= Helpers para estilo y suavizado =======
 def responsive_style(start_str: str, end_str: str):
