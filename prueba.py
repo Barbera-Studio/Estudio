@@ -43,18 +43,26 @@ with st.spinner("Descargando datos del IBEX 35..."):
         st.error(f"❌ Error al descargar datos del IBEX: {e}")
         st.stop()
 
-# 3. Descargar PIB nominal de España
-with st.spinner("Descargando datos del PIB español..."):
+# 3. Cargar PIB nominal de España desde CSV local
+with st.spinner("Cargando datos del PIB español..."):
     try:
         df_macro = pd.read_csv("pib_esp.csv")
-        df_macro = df_macro.reset_index()
-        df_macro["date"] = pd.to_datetime(df_macro["year"].astype(str) + "-12-31")
-        df_macro.rename(columns={"NY.GDP.MKTP.CD": "pib"}, inplace=True)
+
+        # Asegurar formato de fecha
+        df_macro["date"] = pd.to_datetime(df_macro["date"])
+
+        # Renombrar columnas si quieres mantener consistencia
+        df_macro.rename(columns={"value": "pib"}, inplace=True)
+
+        # Normalización (si quieres recalcularla)
         df_macro["pib_norm_100"] = df_macro["pib"] / df_macro["pib"].iloc[0] * 100
-        pib_esp = df_macro[["date", "pib_norm_100"]].copy()
+
+        # DataFrame final
+        pib_esp = df_macro[["date", "pib", "pib_norm_100"]].copy()
+
         st.success("✅ PIB español cargado correctamente.")
     except Exception as e:
-        st.warning(f"⚠️ Error al descargar PIB: {e}")
+        st.warning(f"⚠️ Error al cargar PIB: {e}")
         pib_esp = pd.DataFrame()
 
 
