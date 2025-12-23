@@ -319,7 +319,7 @@ with tabs[0]:
 
 
 # Pestaña 4: Tipos de interés BCE
-with tabs[3]:
+with tabs[2]:
     if tipos_interes.empty:
         st.warning("No hay datos de tipos de interés para ese rango.")
     else:
