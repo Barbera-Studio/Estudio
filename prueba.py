@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from pandas_datareader import wb
 from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -47,7 +46,7 @@ with st.spinner("Descargando datos del IBEX 35..."):
 # 3. Descargar PIB nominal de España
 with st.spinner("Descargando datos del PIB español..."):
     try:
-        df_macro = wb.download(indicator="NY.GDP.MKTP.CD", country="ESP", start=2000, end=datetime.today().year)
+        df_macro = pd.read_csv("pib_esp.csv")
         df_macro = df_macro.reset_index()
         df_macro["date"] = pd.to_datetime(df_macro["year"].astype(str) + "-12-31")
         df_macro.rename(columns={"NY.GDP.MKTP.CD": "pib"}, inplace=True)
@@ -58,43 +57,7 @@ with st.spinner("Descargando datos del PIB español..."):
         st.warning(f"⚠️ Error al descargar PIB: {e}")
         pib_esp = pd.DataFrame()
 
-# 4. Descargar datos de desempleo
-with st.spinner("Descargando datos de desempleo..."):
-    try:
-        df = wb.download(
-            indicator="SL.UEM.TOTL.ZS",
-            country="ESP",
-            start=2000,
-            end=datetime.today().year
-        ).reset_index()
 
-        df["date"] = pd.to_datetime(df["year"].astype(str) + "-12-31")
-        df.rename(columns={"SL.UEM.TOTL.ZS": "desempleo"}, inplace=True)
-        df["desempleo_norm_100"] = df["desempleo"] / df["desempleo"].iloc[0] * 100
-        desempleo = df[["date", "year", "desempleo", "desempleo_norm_100"]]
-        st.success("✅ Datos de desempleo cargados correctamente.")
-    except Exception as e:
-        st.error(f"❌ Error al descargar datos de desempleo: {e}")
-        st.stop()
-
-# 5. Descargar datos de deuda pública
-with st.spinner("Descargando datos de deuda pública..."):
-    try:
-        df = wb.download(
-            indicator="GC.DOD.TOTL.GD.ZS",
-            country="ESP",
-            start=2000,
-            end=datetime.today().year
-        ).reset_index()
-
-        df["date"] = pd.to_datetime(df["year"].astype(str) + "-12-31")
-        df.rename(columns={"GC.DOD.TOTL.GD.ZS": "deuda"}, inplace=True)
-        df["deuda_norm_100"] = df["deuda"] / df["deuda"].iloc[0] * 100
-        deuda_publica = df[["date", "year", "deuda", "deuda_norm_100"]]
-        st.success("✅ Datos de deuda pública cargados correctamente.")
-    except Exception as e:
-        st.error(f"❌ Error al descargar datos de deuda pública: {e}")
-        st.stop()
 
 # 6. Descargar datos de tipos de interés
 with st.spinner("Descargando datos de tipos de interés..."):
@@ -163,8 +126,6 @@ comparativa_filtrada = comparativa[
     (comparativa["date"] >= start_str) &
     (comparativa["date"] <= end_str)
 ]
-desempleo        = desempleo[(desempleo["date"] >= start_str) & (desempleo["date"] <= end_str)]
-deuda_publica    = deuda_publica[(deuda_publica["date"] >= start_str) & (deuda_publica["date"] <= end_str)]
 tipos_interes    = tipos_interes[(tipos_interes["date"] >= start_str) & (tipos_interes["date"] <= end_str)]
 
 # Tabs para los gráficos
@@ -349,60 +310,6 @@ with tabs[0]:
         )
 
 
-# Pestaña 2: Tasa de desempleo
-with tabs[1]:
-    if desempleo.empty:
-        st.warning("No hay datos de desempleo para ese rango.")
-    else:
-        fig2 = go.Figure(go.Scatter(
-            x=desempleo["date"],
-            y=desempleo["desempleo"],
-            mode="lines+markers", name="Desempleo (%)",
-            line=dict(color="crimson"),
-            hovertemplate="%{y:.2f}%<br>%{x|%Y}"
-        ))
-        fig2.update_layout(
-            title="Tasa de desempleo en España",
-            xaxis_title="Año", yaxis_title="Desempleo (%)",
-            hovermode="x unified", margin=dict(l=40, r=40, t=60, b=40)
-        )
-        fig2.update_xaxes(
-            tickmode="linear",
-            tick0=tick0_str,
-            dtick="M36",
-            tickformat="%Y",
-            range=[start_str, end_str]
-        )
-        st.plotly_chart(fig2, use_container_width=True)
-
-
-# Pestaña 3: Deuda pública (% PIB)
-with tabs[2]:
-    if deuda_publica.empty:
-        st.warning("No hay datos de deuda pública para ese rango.")
-    else:
-        fig3 = go.Figure(go.Scatter(
-            x=deuda_publica["date"],
-            y=deuda_publica["deuda"],
-            mode="lines+markers", name="Deuda (% PIB)",
-            line=dict(color="darkgreen"),
-            hovertemplate="%{y:.2f}%<br>%{x|%Y}"
-        ))
-        fig3.update_layout(
-            title="Deuda pública de España",
-            xaxis_title="Año", yaxis_title="Deuda (% PIB)",
-            hovermode="x unified", margin=dict(l=40, r=40, t=60, b=40)
-        )
-        fig3.update_xaxes(
-            tickmode="linear",
-            tick0=tick0_str,
-            dtick="M36",
-            tickformat="%Y",
-            range=[start_str, end_str]
-        )
-        st.plotly_chart(fig3, use_container_width=True)
-
-
 # Pestaña 4: Tipos de interés BCE
 with tabs[3]:
     if tipos_interes.empty:
@@ -441,26 +348,6 @@ with st.expander("📋 Ver datos comparativos"):
         "⬇️ Descargar CSV",
         data=csv,
         file_name="comparativa_ibex_pib.csv",
-        mime="text/csv"
-    )
-
-with st.expander("📋 Ver datos de desempleo"):
-    st.dataframe(desempleo)  # <-- usa 'desempleo' en lugar de 'df_desempleo'
-    csv_desempleo = desempleo.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "⬇️ Descargar CSV de desempleo",
-        data=csv_desempleo,
-        file_name="desempleo_espana.csv",
-        mime="text/csv"
-    )
-
-with st.expander("📋 Ver datos de deuda pública"):
-    st.dataframe(deuda_publica)  # <-- usa 'deuda_publica'
-    csv_deuda = deuda_publica.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        "⬇️ Descargar CSV de deuda pública",
-        data=csv_deuda,
-        file_name="deuda_publica_espana.csv",
         mime="text/csv"
     )
 
