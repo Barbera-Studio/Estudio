@@ -3,3 +3,4 @@ pandas
 plotly
 yfinance
 matplotlib
+streamlit-js-eval
