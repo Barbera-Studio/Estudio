@@ -41,7 +41,7 @@ with st.spinner("Descargando datos del IBEX 35..."):
         st.error(f"❌ Error al descargar datos del IBEX: {e}")
         st.stop()
 
-# 3. Cargar PIB nominal de España desde CSV local
+# 2. PIB España
 with st.spinner("Cargando datos del PIB español..."):
     try:
         df_macro = pd.read_csv("pib_esp.csv")
@@ -54,7 +54,7 @@ with st.spinner("Cargando datos del PIB español..."):
         st.warning(f"⚠️ Error al cargar PIB: {e}")
         pib_esp = pd.DataFrame()
 
-# 6. Descargar datos de tipos de interés
+# 3. Tipos BCE
 with st.spinner("Cargando datos de tipos de interés..."):
     try:
         df_tipos = pd.read_csv("tipos_bce.csv")
@@ -71,15 +71,15 @@ with st.spinner("Cargando datos de tipos de interés..."):
         st.error(f"❌ Error al cargar datos de tipos de interés: {e}")
         st.stop()
 
-# 4. Agrupar IBEX por año
+# 4. IBEX anual
 ibex["year"] = ibex["date"].dt.year
 ibex_anual = ibex.groupby("year")["close_norm_100"].mean().reset_index()
 ibex_anual["date"] = pd.to_datetime(ibex_anual["year"].astype(str) + "-12-31")
 
-# 5. Unir IBEX y PIB
+# 5. Unir IBEX + PIB
 comparativa = pd.merge(ibex_anual, pib_esp, on="date", how="inner")
 
-# 6. Añadir inflación anual
+# 6. Inflación
 inflacion_data = {
     2000: 3.4, 2001: 2.8, 2002: 3.5, 2003: 2.6, 2004: 3.1, 2005: 3.4, 2006: 3.6, 2007: 4.2,
     2008: 1.4, 2009: -0.3, 2010: 1.8, 2011: 3.1, 2012: 2.4, 2013: 1.4, 2014: -0.2, 2015: -0.5,
@@ -89,7 +89,7 @@ df_inflacion = pd.DataFrame(list(inflacion_data.items()), columns=["year", "infl
 df_inflacion["date"] = pd.to_datetime(df_inflacion["year"].astype(str) + "-12-31")
 comparativa = pd.merge(comparativa, df_inflacion, on="date", how="left")
 
-# 7. Filtro por rango de años
+# 7. Filtro años
 min_year = comparativa["date"].dt.year.min()
 max_year = comparativa["date"].dt.year.max()
 rango = st.slider("Selecciona el rango de años", min_year, max_year, (min_year, max_year), step=1)
@@ -107,18 +107,16 @@ tipos_interes_filtrados = tipos_interes[
     (tipos_interes["date"] <= end_str)
 ]
 
-# Tabs para los gráficos
 tabs = st.tabs(["📈 IBEX vs PIB", "💰 Deuda pública", "🏦 Tipos de interés"])
 
-# ======= Helpers para estilo y suavizado =======
 def responsive_style(start_str: str, end_str: str):
     span = (pd.to_datetime(end_str).year - pd.to_datetime(start_str).year) + 1
     if span <= 8:
-        return dict(height=620, line_w=3, font=14, label_font=13, years_step=1, smooth=False, window=1)
+        return dict(height=640, line_w=3, font=14, label_font=13, years_step=1, smooth=False, window=1)
     elif span <= 15:
-        return dict(height=700, line_w=2.6, font=13, label_font=12, years_step=2, smooth=True, window=2)
+        return dict(height=720, line_w=2.6, font=13, label_font=12, years_step=2, smooth=True, window=2)
     else:
-        return dict(height=780, line_w=2.2, font=12, label_font=11, years_step=3, smooth=True, window=3)
+        return dict(height=800, line_w=2.2, font=12, label_font=11, years_step=3, smooth=True, window=3)
 
 def year_tickvals(start_str: str, end_str: str, step_years: int):
     y0 = pd.to_datetime(start_str).year
@@ -131,7 +129,7 @@ def maybe_smooth(df: pd.DataFrame, col: str, window: int):
         return df[col]
     return df[col].rolling(window=window, min_periods=1, center=True).mean()
 
-# Pestaña 1: IBEX vs PIB
+# ===== Pestaña 1: IBEX vs PIB =====
 with tabs[0]:
     st.markdown("<h3 style='margin:0 0 8px 0;'>Evolución IBEX 35 vs PIB España</h3>", unsafe_allow_html=True)
 
@@ -155,51 +153,87 @@ with tabs[0]:
             specs=[[{"secondary_y": False}], [{"secondary_y": False}]]
         )
 
-        fig.add_trace(go.Scatter(
-            x=comparativa_filtrada["date"], y=ibex_series,
-            mode="lines", name="IBEX 35",
-            line=dict(color="#2563eb", width=sty["line_w"]),
-            hovertemplate="<b>IBEX</b>: %{y:.2f}<br>%{x|%Y}<extra></extra>",
-            line_shape="spline" if sty["smooth"] else "linear"
-        ), row=1, col=1)
+        # Serie IBEX
+        fig.add_trace(
+            go.Scatter(
+                x=comparativa_filtrada["date"],
+                y=ibex_series,
+                mode="lines",
+                name="IBEX 35",
+                line=dict(color="#2563eb", width=sty["line_w"]),
+                hovertemplate="<b>IBEX</b>: %{y:.2f}<br>%{x|%Y}<extra></extra>",
+                line_shape="spline" if sty["smooth"] else "linear",
+            ),
+            row=1,
+            col=1,
+        )
 
-        fig.add_trace(go.Scatter(
-            x=comparativa_filtrada["date"], y=pib_series,
-            mode="lines", name="PIB España",
-            line=dict(color="#16a34a", width=sty["line_w"]),
-            hovertemplate="<b>PIB</b>: %{y:.2f}<br>%{x|%Y}<extra></extra>",
-            line_shape="spline" if sty["smooth"] else "linear"
-        ), row=1, col=1)
+        # Serie PIB
+        fig.add_trace(
+            go.Scatter(
+                x=comparativa_filtrada["date"],
+                y=pib_series,
+                mode="lines",
+                name="PIB España",
+                line=dict(color="#16a34a", width=sty["line_w"]),
+                hovertemplate="<b>PIB</b>: %{y:.2f}<br>%{x|%Y}<extra></extra>",
+                line_shape="spline" if sty["smooth"] else "linear",
+            ),
+            row=1,
+            col=1,
+        )
 
-        fig.add_trace(go.Scatter(
-            x=comparativa_filtrada["date"], y=inf_series,
-            mode="lines", name="Inflación (%)",
-            line=dict(color="#92400e", width=max(1.6, sty["line_w"] - 0.4), dash="dash"),
-            opacity=0.9,
-            hovertemplate="<b>Inflación</b>: %{y:.2f}%<br>%{x|%Y}<extra></extra>",
-            line_shape="spline" if sty["smooth"] else "linear"
-        ), row=2, col=1)
+        # Serie inflación (fila 2)
+        fig.add_trace(
+            go.Scatter(
+                x=comparativa_filtrada["date"],
+                y=inf_series,
+                mode="lines",
+                name="Inflación (%)",
+                line=dict(color="#92400e", width=max(1.6, sty["line_w"] - 0.4), dash="dash"),
+                opacity=0.9,
+                hovertemplate="<b>Inflación</b>: %{y:.2f}%<br>%{x|%Y}<extra></extra>",
+                line_shape="spline" if sty["smooth"] else "linear",
+            ),
+            row=2,
+            col=1,
+        )
 
-        # Eventos: etiquetas más cortas y solo en la fila superior
+        # ===== EVENTOS: vrect + texto vertical abajo, centrado a cada franja =====
         eventos = [
             dict(ini="2008-01-01", fin="2010-01-01", label="Recesión 2008-10", color="#ef4444"),
             dict(ini="2020-01-01", fin="2021-01-01", label="COVID-19", color="#7c3aed"),
             dict(ini="2022-01-01", fin="2023-01-01", label="Post-COVID inflación", color="#ea580c"),
         ]
 
-        # Ajuste de tamaño de letra de eventos en función del span temporal
         span_years = (pd.to_datetime(end_str).year - pd.to_datetime(start_str).year) + 1
         if span_years <= 8:
-            event_font_size = max(10, sty["label_font"] - 1)
-            event_opacity = 0.16
+            event_font_size = 16
+            event_opacity = 0.20
         elif span_years <= 15:
-            event_font_size = max(9, sty["label_font"] - 2)
-            event_opacity = 0.14
+            event_font_size = 14
+            event_opacity = 0.18
         else:
-            event_font_size = 8
-            event_opacity = 0.12
+            event_font_size = 12
+            event_opacity = 0.16
+
+        # Rango del eje superior y espacio para etiquetas
+        y1_min = min(ibex_series.min(), pib_series.min())
+        y1_max = max(ibex_series.max(), pib_series.max())
+        margin_bottom = (y1_max - y1_min) * 0.10  # 10% del rango
+
+        fig.update_yaxes(range=[y1_min - margin_bottom, y1_max + 3], row=1, col=1)
+
+        # y en paper para los textos, alineados visualmente con la base de las barras
+        # (más arriba que antes para que "se peguen" al pie de la franja)
+        label_y_paper = 0.5  # subir/bajar milimétricamente aquí si hace falta
 
         for ev in eventos:
+            ini_dt = pd.to_datetime(ev["ini"])
+            fin_dt = pd.to_datetime(ev["fin"])
+            x_center = ini_dt + (fin_dt - ini_dt) / 2
+
+            # Banda
             fig.add_vrect(
                 x0=ev["ini"],
                 x1=ev["fin"],
@@ -207,43 +241,56 @@ with tabs[0]:
                 opacity=event_opacity,
                 layer="below",
                 line_width=0,
-                annotation_text=ev["label"],
-                annotation_position="top left",
-                annotation=dict(font=dict(size=event_font_size)),
                 row=1,
-                col=1
+                col=1,
             )
 
+            # Texto vertical, centrado a la banda, abajo
+            fig.add_annotation(
+                x=x_center,
+                y=label_y_paper,
+                xref="x1",
+                yref="paper",
+                text=f"<b>{ev['label']}</b>",
+                showarrow=False,
+                font=dict(size=event_font_size),
+                textangle=90,
+                align="center",
+            )
+
+        # ===== FIN EVENTOS =====
+
         fig.add_annotation(
-            x=0, y=1.08, xref="paper", yref="paper",
+            x=0,
+            y=1.08,
+            xref="paper",
+            yref="paper",
             text=f"Corr IBEX vs PIB: {corr:.2f}",
-            showarrow=False, font=dict(size=sty["label_font"])
+            showarrow=False,
+            font=dict(size=sty["label_font"]),
         )
 
         fig.update_layout(
             hovermode="x unified",
             height=sty["height"],
-            margin=dict(l=28, r=28, t=80, b=120),
+            margin=dict(l=28, r=28, t=80, b=180),
             legend=dict(
                 orientation="h",
                 yanchor="top",
-                y=-0.1,
+                y=-0.2,
                 xanchor="left",
                 x=0,
                 bgcolor="rgba(255,255,255,0.6)",
                 bordercolor="rgba(0,0,0,0.08)",
                 borderwidth=1,
-                font=dict(size=sty["label_font"])
-            )
+                font=dict(size=sty["label_font"]),
+            ),
         )
 
         fig.update_yaxes(title_text="Índice normalizado (Base 100)", row=1, col=1)
         fig.update_yaxes(title_text="Inflación (%)", row=2, col=1)
 
-        y1_min = min(ibex_series.min(), pib_series.min())
-        y1_max = max(ibex_series.max(), pib_series.max())
-        fig.update_yaxes(range=[y1_min - 3, y1_max + 3], row=1, col=1)
-
+        # Rango de la inflación
         y2_min = inf_series.min()
         y2_max = inf_series.max()
         fig.update_yaxes(range=[y2_min - 0.5, y2_max + 0.5], row=2, col=1)
@@ -253,11 +300,15 @@ with tabs[0]:
             tickmode="array",
             tickvals=tickvals,
             ticktext=ticktext,
-            ticks="outside", ticklen=6, tickcolor="rgba(0,0,0,0.45)",
-            showgrid=True, gridcolor="rgba(0,0,0,0.08)",
+            ticks="outside",
+            ticklen=6,
+            tickcolor="rgba(0,0,0,0.45)",
+            showgrid=True,
+            gridcolor="rgba(0,0,0,0.08)",
             automargin=True,
             range=[start_str, end_str],
-            row=2, col=1
+            row=2,
+            col=1,
         )
         fig.update_xaxes(showticklabels=False, title_text=None, row=1, col=1)
         fig.update_xaxes(title_text=None, row=2, col=1)
@@ -269,44 +320,55 @@ with tabs[0]:
                 "displayModeBar": True,
                 "displaylogo": False,
                 "responsive": True,
-                "modeBarButtonsToRemove": ["toggleSpikelines", "autoScale2d", "lasso2d", "select2d"]
-            }
+                "modeBarButtonsToRemove": [
+                    "toggleSpikelines",
+                    "autoScale2d",
+                    "lasso2d",
+                    "select2d",
+                ],
+            },
         )
 
-# Pestaña 2: Deuda pública (placeholder si aún no tienes datos)
+# ===== Pestaña 2: Deuda (placeholder) =====
 with tabs[1]:
     st.info("Sección de deuda pública pendiente de implementar.")
 
-# Pestaña 3: Tipos de interés BCE
+# ===== Pestaña 3: Tipos BCE =====
 with tabs[2]:
     if tipos_interes_filtrados.empty:
         st.warning("No hay datos de tipos de interés para ese rango.")
     else:
-        fig4 = go.Figure(go.Scatter(
-            x=tipos_interes_filtrados["date"],
-            y=tipos_interes_filtrados["tipo"],
-            mode="lines+markers", name="Tipo BCE (%)",
-            line=dict(color="navy"),
-            hovertemplate="%{y:.2f}%<br>%{x|%Y-%m-%d}"
-        ))
+        fig4 = go.Figure(
+            go.Scatter(
+                x=tipos_interes_filtrados["date"],
+                y=tipos_interes_filtrados["tipo"],
+                mode="lines+markers",
+                name="Tipo BCE (%)",
+                line=dict(color="navy"),
+                hovertemplate="%{y:.2f}%<br>%{x|%Y-%m-%d}",
+            )
+        )
         fig4.update_layout(
             title="Tipo de interés principal del BCE",
-            xaxis_title="Fecha", yaxis_title="Porcentaje (%)",
-            hovermode="x unified", margin=dict(l=40, r=40, t=60, b=40)
+            xaxis_title="Fecha",
+            yaxis_title="Porcentaje (%)",
+            hovermode="x unified",
+            margin=dict(l=40, r=40, t=60, b=40),
         )
         fig4.update_xaxes(
             tickmode="linear",
             tick0=tick0_str,
             dtick="M36",
             tickformat="%Y",
-            range=[start_str, end_str]
+            range=[start_str, end_str],
         )
         st.plotly_chart(fig4, use_container_width=True)
 
-# 8. Calcular correlación (por si quieres usarla más adelante)
+# Correlación disponible
 if not comparativa_filtrada.empty:
     correlacion = comparativa_filtrada[["close_norm_100", "pib_norm_100"]].corr().iloc[0, 1]
 
+# Datos descargables
 with st.expander("📋 Ver datos comparativos IBEX vs PIB"):
     st.dataframe(comparativa_filtrada)
     csv = comparativa_filtrada.to_csv(index=False).encode("utf-8")
@@ -314,7 +376,7 @@ with st.expander("📋 Ver datos comparativos IBEX vs PIB"):
         "⬇️ Descargar CSV comparativa IBEX vs PIB",
         data=csv,
         file_name="comparativa_ibex_pib.csv",
-        mime="text/csv"
+        mime="text/csv",
     )
 
 with st.expander("📋 Ver datos de tipos de interés"):
@@ -324,5 +386,5 @@ with st.expander("📋 Ver datos de tipos de interés"):
         "⬇️ Descargar CSV de tipos de interés",
         data=csv_tipos,
         file_name="tipos_interes_bce.csv",
-        mime="text/csv"
+        mime="text/csv",
     )
